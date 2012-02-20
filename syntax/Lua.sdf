@@ -1,0 +1,171 @@
+module Lua
+
+imports 
+	
+  Lexical
+
+exports
+
+  context-free start-symbols
+  
+    Start
+
+  context-free syntax
+  
+    %% Chunk
+    StatementClosure* LastStatementClosure -> Chunk {cons("Chunk")}
+    StatementClosure* -> Chunk {cons("Chunk")}
+    Chunk -> Start
+    Chunk -> Block
+    
+    %% Statement
+    {VarRef ","}+ "=" {Exp ","}+ -> Statement {cons("Assignment")}
+    FunctionCall -> Statement
+    "do" Block "end" -> Statement {cons("DoWhile")}
+    "while" Exp "do" Block "end" -> Statement {cons("While")}
+    "repeat" Block "until" Exp -> Statement {cons("Repeat")}
+    "elseif" Exp "then" Block -> ElseIfPart {cons("ElseIfPart")}
+    "if" Exp "then" Block "end" -> Statement {cons("If")}
+    "if" Exp "then" Block "else" Block "end" -> Statement {cons("If")}
+    "if" Exp "then" Block ElseIfPart+ "end" -> Statement {cons("IfElseIf")}
+    "if" Exp "then" Block ElseIfPart+ "else" Block "end" -> Statement {cons("If")}
+    "," Exp -> ExpPart {cons("ExpPart")}
+    "for" Id "=" Exp "," Exp ExpPart? "do" Block "end" -> Statement {cons("For")}
+    "for" {Id ","}+ "in" {Exp ","}+ "do" Block "end" -> Statement {cons("ForIn")}
+    "function" FunctionName "(" ParList ")" Block "end" -> Statement {cons("FuncDef")}
+    "local" "function" Id "(" ParList ")" Block "end" -> Statement {cons("LocalFuncDef")}
+    "local" {Id ","}+ -> Statement {cons("LocalVarDef")}
+    "local" {Id ","}+ "=" {Exp ","}+ -> Statement {cons("LocalVarDef")}
+    Statement -> StatementClosure
+    Statement ";" -> StatementClosure
+    
+	%% Last statement
+    "return" -> LastStatement {cons("Return")}
+    "return" {Exp ","}+ -> LastStatement {cons("Return")}
+    "break" -> LastStatement {cons("Break")}
+    LastStatement -> LastStatementClosure
+    LastStatement ";" -> LastStatementClosure
+    
+    %% Function
+    "." Id -> DotIdPart {cons("DotIdPart")}
+    Id -> FunctionName {cons("FunctionName")}
+    Id ":" Id -> FunctionName {cons("FunctionName")}
+    Id DotIdPart+ -> FunctionName {cons("FunctionName")}
+    Id DotIdPart+ ":" Id -> FunctionName {cons("FunctionName")}
+    PrefixExp Args -> FunctionCall {cons("Call")}
+    PrefixExp ":" Id Args -> FunctionCall {cons("Call")}
+    
+    %% Args
+    "(" {Exp ","}* ")" -> Args {cons("Args")}
+    Table -> Args
+    StrConst -> Args
+    
+    %% Variable
+    Id -> VarRef {cons("VarRef")}
+    PrefixExp "[" Exp "]" -> VarRef {cons("TableVarRef")}
+    PrefixExp "." Id -> VarRef {cons("Access")}
+    
+    %% Field
+    "[" Exp "]" "=" Exp -> Field {cons("Field")}
+    Id "=" Exp -> Field {cons("Field")}
+    Exp -> Field {cons("Field")}
+    "{" "}" -> Table {cons("Table")}
+    "{" Field "}" -> Table {cons("Table"), prefer}
+    "{" {Field ","}+ "}" -> Table {cons("Table")}
+    "{" {Field ";"}+ "}" -> Table {cons("Table")}
+    
+    %% Expression
+    "nil" -> Exp {cons("LuaNil")}
+    "false" -> Exp {cons("False")}
+    "true" -> Exp {cons("True")}
+    IntConst -> Exp {cons("Number")}
+    FloatConst -> Exp {cons("Number")}
+    StrConst -> Exp {cons("String")}
+    "..." -> Exp {cons("Nothing")}
+    "function" "(" ParList ")" Block "end" -> Exp {cons("Function")}
+    PrefixExp -> Exp
+    Table -> Exp
+	
+	%% Prefix expression
+    VarRef -> PrefixExp
+    FunctionCall -> PrefixExp
+    "(" Exp ")" -> PrefixExp {bracket}
+	
+	%% Operators
+    "not" Exp       -> Exp {cons("Not"), left}
+    "-" Exp 		-> Exp {cons("Umin"), left}
+    "#" Exp 		-> Exp {cons("Hash"), left}
+    Exp "+" Exp     -> Exp {cons("Add"), left}
+    Exp "-" Exp     -> Exp {cons("Sub"), left}
+    Exp "*" Exp     -> Exp {cons("Mul"), left}
+    Exp "/" Exp     -> Exp {cons("Div"), left}
+    Exp "%" Exp     -> Exp {cons("Mod"), left}
+    Exp "^" Exp     -> Exp {cons("Pow"), right}
+    Exp ".." Exp    -> Exp {cons("Concat"), right}
+    Exp "==" Exp    -> Exp {cons("Eq"), left}
+    Exp "~=" Exp    -> Exp {cons("Neq"), left}
+    Exp "<" Exp     -> Exp {cons("Lt"), left}
+    Exp "<=" Exp    -> Exp {cons("Lte"), left}
+    Exp ">" Exp     -> Exp {cons("Gt"), left}
+    Exp ">=" Exp    -> Exp {cons("Gte"), left}
+    Exp "and" Exp   -> Exp {cons("And"), left}
+    Exp "or" Exp    -> Exp {cons("Or"), left}
+	
+	%% Lists
+    "..." -> ParList {cons("VaradicParList")}
+	{Id ","}+ "," "..." -> ParList {cons("PartialVaradicParList")}
+	{Id ","}+ -> ParList {cons("ParList")}
+	-> ParList {cons("ParList")}
+	
+    context-free priorities
+    %% Operators, following the operator predecence from: http://www.lua.org/manual/5.1/manual.html#2.5.6
+    {
+      right:
+        Exp "^" Exp -> Exp
+	}
+    >
+    {
+      left:
+	    "not" Exp -> Exp
+	    "-" Exp -> Exp
+	    "#" Exp -> Exp
+    }
+    >
+    {
+      left:
+        Exp "*" Exp -> Exp
+        Exp "/" Exp -> Exp
+        Exp "%" Exp -> Exp
+    } 
+    > 
+    {
+      left: 
+        Exp "+" Exp -> Exp
+        Exp "-" Exp -> Exp
+    }
+    >
+    {
+      right:
+        Exp ".." Exp -> Exp
+	}
+    >
+    {
+      left:
+        Exp "==" Exp -> Exp
+        Exp "~=" Exp -> Exp
+        Exp "<" Exp -> Exp
+        Exp "<=" Exp -> Exp
+        Exp ">" Exp -> Exp
+        Exp ">=" Exp -> Exp
+    }
+    >
+    {
+      left:
+        Exp "and" Exp -> Exp
+    }
+    >
+    {
+      left:
+        Exp "or" Exp -> Exp
+    }
+    

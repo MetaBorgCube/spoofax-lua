@@ -1,0 +1,17 @@
+
+module Lua-Builders
+
+imports Lua-Builders.generated
+
+builders
+                                                                      
+  // This file can be used for custom analysis and builder rules.     
+  //                                                                  
+  // See the imported file for a brief introduction and examples.     
+
+builders
+                                                                                                              
+  provider : include/lua.ctree                                                                                
+  provider : include/lua-java.jar                                                                             
+                                                                                                                                                                                                                                                                                   
+  builder                   : "Show abstract syntax" = generate-aterm (openeditor) (realtime) (meta) (source)              

@@ -1,0 +1,3 @@
+module Lua-Completions
+
+imports Lua-Completions.generated

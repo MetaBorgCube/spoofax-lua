@@ -1,0 +1,75 @@
+module Lexical
+
+exports
+
+  lexical syntax
+  
+  	%% Identifier
+    [\_a-zA-Z][a-zA-Z0-9\_]* -> Id
+    
+    %% Reject keywords as identifiers.
+    "nil" -> Id {reject}
+    "true" -> Id {reject}
+    "false" -> Id {reject}
+    "else" -> Id {reject}
+    "if" -> Id {reject}
+    "return" -> Id {reject}
+    "while" -> Id {reject}
+    
+    %% Boolean
+    "true"					-> BoolConst
+    "false"					-> BoolConst
+    
+    %% Numbers
+    [0-9]+					-> IntConst
+    IntConst "." IntConst 	-> FloatConst
+    
+    %% Strings
+    "\"" StrChar* "\""		-> StrConst
+	
+	~[\\\"\n]				-> StrChar
+	[\\] [n]				-> StrChar
+	[\\] [t]				-> StrChar
+	[\\] [\^] [A-Z]			-> StrChar
+	[\\] [0-9][0-9][0-9]	-> StrChar
+	[\\] [\"]				-> StrChar
+	[\\] [\\]				-> StrChar
+	[\\] [\ \t\n]+ [\\]		-> StrChar
+	
+  lexical syntax  %% Spacing
+  	
+    [\ \t\n\r] -> LAYOUT
+
+	%% Comments
+    "--" ~[\n\r]* ([\n\r] | EOF)     -> LAYOUT
+
+    -> EOF
+  
+  lexical restrictions
+  
+    %% Ensure greedy matching for lexicals.
+  
+    IntConst      -/- [0-9]
+    FloatConst    -/- [0-9]
+    Id            -/- [a-zA-Z0-9\_]
+    
+    %% Ensure greedy matching for keywords.
+    
+    "nil"       -/- [a-zA-Z0-9\_]
+    "true"      -/- [a-zA-Z0-9\_]
+    "false"     -/- [a-zA-Z0-9\_]
+    "else"      -/- [a-zA-Z0-9\_]
+    "if"      	-/- [a-zA-Z0-9\_]
+    "return"    -/- [a-zA-Z0-9\_]
+    "while"     -/- [a-zA-Z0-9\_]
+    
+    %% EOF may not be followed by any char
+    
+    EOF           -/- ~[]
+
+  context-free restrictions
+  
+    %% Ensure greedy matching for comments
+
+    LAYOUT? -/- [\ \t\n\r]
+    LAYOUT? -/- [\-].[\-]
